@@ -336,7 +336,7 @@ func cmdFromStruct(name string, dest path, t reflect.Type) (*command, error) {
 				if value != "" {
 					spec.env = value
 				} else {
-					spec.env = strings.ToUpper(field.Name)
+					spec.env = strings.ToLower(field.Name)
 				}
 			case key == "subcommand":
 				// decide on a name for the subcommand
@@ -367,9 +367,9 @@ func cmdFromStruct(name string, dest path, t reflect.Type) (*command, error) {
 		if hasPlaceholder {
 			spec.placeholder = placeholder
 		} else if spec.long != "" {
-			spec.placeholder = strings.ToUpper(spec.long)
+			spec.placeholder = strings.ToLower(spec.long)
 		} else {
-			spec.placeholder = strings.ToUpper(spec.field.Name)
+			spec.placeholder = strings.ToLower(spec.field.Name)
 		}
 
 		// Check whether this field is supported. It's good to do this here rather than
@@ -549,7 +549,7 @@ func (p *Parser) process(args []string) error {
 		switch arg {
 		case "-h", "--help":
 			return ErrHelp
-		case "--version":
+		case "-v", "--version":
 			return ErrVersion
 		}
 
