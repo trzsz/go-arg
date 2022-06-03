@@ -565,7 +565,22 @@ func (p *Parser) process(args []string) error {
 		// we expand subcommands so it is better not to use a map)
 		spec := findOption(specs, opt)
 		if spec == nil {
-			return fmt.Errorf("unknown argument %s", arg)
+			// try to support combined arguments
+			if len(arg) > 2 && arg[0] == '-' && arg[1] != '-' {
+				for i := 1; i < len(arg)-1; i++ {
+					spec = findOption(specs, arg[i:i+1])
+					if spec == nil || spec.cardinality != zero {
+						return fmt.Errorf("unknown argument %s", arg)
+					}
+					if err := scalar.ParseValue(p.val(spec.dest), "true"); err != nil {
+						return fmt.Errorf("error processing %s: %v", arg, err)
+					}
+				}
+				spec = findOption(specs, arg[len(arg)-1:])
+			}
+			if spec == nil {
+				return fmt.Errorf("unknown argument %s", arg)
+			}
 		}
 		wasPresent[spec] = true
 
