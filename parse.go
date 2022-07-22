@@ -567,16 +567,27 @@ func (p *Parser) process(args []string) error {
 		if spec == nil {
 			// try to support combined arguments
 			if len(arg) > 2 && arg[0] == '-' && arg[1] != '-' {
+				parsed := false
 				for i := 1; i < len(arg)-1; i++ {
 					spec = findOption(specs, arg[i:i+1])
-					if spec == nil || spec.cardinality != zero {
+					if spec == nil {
 						return fmt.Errorf("unknown argument %s", arg)
+					}
+					if spec.cardinality != zero {
+						parsed = true
+						value = arg[i+1:]
+						arg = "-" + arg[i:i+1]
+						break
 					}
 					if err := scalar.ParseValue(p.val(spec.dest), "true"); err != nil {
 						return fmt.Errorf("error processing %s: %v", arg, err)
 					}
+					wasPresent[spec] = true
 				}
-				spec = findOption(specs, arg[len(arg)-1:])
+				if !parsed {
+					arg = "-" + arg[len(arg)-1:]
+					spec = findOption(specs, arg[1:])
+				}
 			}
 			if spec == nil {
 				return fmt.Errorf("unknown argument %s", arg)
