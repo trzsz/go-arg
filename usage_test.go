@@ -50,7 +50,7 @@ Options:
   --optimize OPTIMIZE, -O OPTIMIZE
                          optimization level
   --ids IDS              Ids
-  --values VALUES        Values [default: [3.14 42 256]]
+  --values VALUES        Values
   --workers WORKERS, -w WORKERS
                          number of workers to start [default: 10, env: WORKERS]
   --testenv TESTENV, -a TESTENV [env: TEST_ENV]
@@ -74,7 +74,6 @@ Options:
 	}
 	args.Name = "Foo Bar"
 	args.Value = 42
-	args.Values = []float64{3.14, 42, 256}
 	args.File = &NameDotName{"scratch", "txt"}
 	p, err := NewParser(Config{Program: "example"}, &args)
 	require.NoError(t, err)
@@ -285,6 +284,37 @@ Options:
 	assert.Equal(t, expectedUsage, strings.TrimSpace(usage.String()))
 }
 
+type epilogued struct{}
+
+// Epilogued returns the epilogue for this program
+func (epilogued) Epilogue() string {
+	return "For more information visit github.com/alexflint/go-arg"
+}
+
+func TestUsageWithEpilogue(t *testing.T) {
+	expectedUsage := "Usage: example"
+
+	expectedHelp := `
+Usage: example
+
+Options:
+  --help, -h             display this help and exit
+
+For more information visit github.com/alexflint/go-arg
+`
+	os.Args[0] = "example"
+	p, err := NewParser(Config{}, &epilogued{})
+	require.NoError(t, err)
+
+	var help bytes.Buffer
+	p.WriteHelp(&help)
+	assert.Equal(t, expectedHelp[1:], help.String())
+
+	var usage bytes.Buffer
+	p.WriteUsage(&usage)
+	assert.Equal(t, expectedUsage, strings.TrimSpace(usage.String()))
+}
+
 func TestUsageForRequiredPositionals(t *testing.T) {
 	expectedUsage := "Usage: example REQUIRED1 REQUIRED2\n"
 	var args struct {
@@ -475,7 +505,7 @@ Options:
 		ShortOnly2 string `arg:"-b,--,required" help:"some help2"`
 	}
 	p, err := NewParser(Config{Program: "example"}, &args)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var help bytes.Buffer
 	p.WriteHelp(&help)
@@ -542,18 +572,9 @@ Options:
 }
 
 func TestFail(t *testing.T) {
-	originalStderr := stderr
-	originalExit := osExit
-	defer func() {
-		stderr = originalStderr
-		osExit = originalExit
-	}()
-
-	var b bytes.Buffer
-	stderr = &b
-
+	var stdout bytes.Buffer
 	var exitCode int
-	osExit = func(code int) { exitCode = code }
+	exit := func(code int) { exitCode = code }
 
 	expectedStdout := `
 Usage: example [--foo FOO]
@@ -563,27 +584,18 @@ error: something went wrong
 	var args struct {
 		Foo int
 	}
-	p, err := NewParser(Config{Program: "example"}, &args)
+	p, err := NewParser(Config{Program: "example", Exit: exit, Out: &stdout}, &args)
 	require.NoError(t, err)
 	p.Fail("something went wrong")
 
-	assert.Equal(t, expectedStdout[1:], b.String())
+	assert.Equal(t, expectedStdout[1:], stdout.String())
 	assert.Equal(t, -1, exitCode)
 }
 
 func TestFailSubcommand(t *testing.T) {
-	originalStderr := stderr
-	originalExit := osExit
-	defer func() {
-		stderr = originalStderr
-		osExit = originalExit
-	}()
-
-	var b bytes.Buffer
-	stderr = &b
-
+	var stdout bytes.Buffer
 	var exitCode int
-	osExit = func(code int) { exitCode = code }
+	exit := func(code int) { exitCode = code }
 
 	expectedStdout := `
 Usage: example sub
@@ -593,12 +605,44 @@ error: something went wrong
 	var args struct {
 		Sub *struct{} `arg:"subcommand"`
 	}
-	p, err := NewParser(Config{Program: "example"}, &args)
+	p, err := NewParser(Config{Program: "example", Exit: exit, Out: &stdout}, &args)
 	require.NoError(t, err)
 
 	err = p.FailSubcommand("something went wrong", "sub")
 	require.NoError(t, err)
 
-	assert.Equal(t, expectedStdout[1:], b.String())
+	assert.Equal(t, expectedStdout[1:], stdout.String())
 	assert.Equal(t, -1, exitCode)
+}
+
+type lengthOf struct {
+	Length int
+}
+
+func (p *lengthOf) UnmarshalText(b []byte) error {
+	p.Length = len(b)
+	return nil
+}
+
+func TestHelpShowsDefaultValueFromOriginalTag(t *testing.T) {
+	// check that the usage text prints the original string from the default tag, not
+	// the serialization of the parsed value
+
+	expectedHelp := `
+Usage: example [--test TEST]
+
+Options:
+  --test TEST [default: some_default_value]
+  --help, -h             display this help and exit
+`
+
+	var args struct {
+		Test *lengthOf `default:"some_default_value"`
+	}
+	p, err := NewParser(Config{Program: "example"}, &args)
+	require.NoError(t, err)
+
+	var help bytes.Buffer
+	p.WriteHelp(&help)
+	assert.Equal(t, expectedHelp[1:], help.String())
 }
