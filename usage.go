@@ -112,7 +112,11 @@ func (p *Parser) writeUsageForSubcommand(w io.Writer, cmd *command) {
 		if !spec.required {
 			fmt.Fprint(w, "[")
 		}
-		fmt.Fprint(w, synopsis(spec, "-"+spec.short))
+		if spec.short != "" {
+			fmt.Fprint(w, synopsis(spec, "-"+spec.short))
+		} else {
+			fmt.Fprint(w, synopsis(spec, "--"+spec.long))
+		}
 		if !spec.required {
 			fmt.Fprint(w, "]")
 		}
@@ -157,9 +161,11 @@ func printTwoCols(w io.Writer, left, help string, defaultVal string, envVal stri
 	lhs := "  " + left
 	fmt.Fprint(w, lhs)
 	if help != "" {
-		help = strings.ReplaceAll(help, "\n", "\n" + strings.Repeat(" ", colWidth))
+		help = strings.ReplaceAll(help, "\n", "\n"+strings.Repeat(" ", colWidth))
 		if len(lhs)+2 < colWidth {
 			fmt.Fprint(w, strings.Repeat(" ", colWidth-len(lhs)))
+		} else if len(help) <= 30 {
+			fmt.Fprint(w, "   ")
 		} else {
 			fmt.Fprint(w, "\n"+strings.Repeat(" ", colWidth))
 		}
