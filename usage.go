@@ -107,6 +107,10 @@ func (p *Parser) writeUsageForSubcommand(w io.Writer, cmd *command) {
 	}
 
 	for _, spec := range longOptions {
+		// ignore long options
+		if spec.short == "" {
+			continue
+		}
 		// prefix with a space
 		fmt.Fprint(w, " ")
 		if !spec.required {
@@ -162,7 +166,7 @@ func printTwoCols(w io.Writer, left, help string, defaultVal string, envVal stri
 	fmt.Fprint(w, lhs)
 	if help != "" {
 		help = strings.ReplaceAll(help, "\n", "\n"+strings.Repeat(" ", colWidth))
-		if len(lhs)+2 < colWidth {
+		if len(lhs)+1 < colWidth {
 			fmt.Fprint(w, strings.Repeat(" ", colWidth-len(lhs)))
 		} else if len(help) <= 30 {
 			fmt.Fprint(w, "   ")
