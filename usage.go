@@ -107,8 +107,8 @@ func (p *Parser) writeUsageForSubcommand(w io.Writer, cmd *command) {
 	}
 
 	for _, spec := range longOptions {
-		// ignore long options
-		if spec.short == "" {
+		// hide long options
+		if p.config.HideLongOptions && spec.short == "" {
 			continue
 		}
 		// prefix with a space

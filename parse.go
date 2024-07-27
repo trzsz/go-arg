@@ -136,6 +136,9 @@ type Config struct {
 	// subcommand
 	StrictSubcommands bool
 
+	// HideLongOptions instructs hide the long options in the usage message
+	HideLongOptions bool
+
 	// Exit is called to terminate the process with an error code (defaults to os.Exit)
 	Exit func(int)
 
